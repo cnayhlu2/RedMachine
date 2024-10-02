@@ -2,18 +2,23 @@
 using UnityEngine;
 using Events;
 using Vector3 = UnityEngine.Vector3;
-using Camera;
+using System.Collections;
+using Assets.Scripts.Camera;
 
-namespace Levels
+namespace Camera
 {
     public class CameraMoveController : MonoBehaviour
     {
         private const string TAG = nameof(CameraMoveController);
+        [SerializeField] private CameraMoveConfig _config;
+
         private Transform _moveTarget;
         private ClickHandler _clickHandler;
-        private Vector3 _dragPosition;
+        private Vector3 _dragStartPosition;
+        private Vector3 _movePosition;
         private bool _canDrag;
         private bool _isDraging;
+        Coroutine _coroutine;
 
         private void Start()
         {
@@ -53,9 +58,13 @@ namespace Levels
                 return;
             }
 
-            Vector3 direction = vector - _dragPosition;
-            direction.z = 0;
-            _moveTarget.position -= direction;
+            if (_coroutine != null)
+            {
+                StopCoroutine(_coroutine);
+            }
+            vector.z = 0;
+            _movePosition = _moveTarget.position + (_dragStartPosition - vector);
+            _coroutine = StartCoroutine(MoveCoroutine());
         }
 
         private void DragStartEvent(Vector3 vector)
@@ -65,8 +74,19 @@ namespace Levels
                 return;
             }
             _isDraging = true;
-            _dragPosition = vector;
+            vector.z = 0;
+            _dragStartPosition = vector;
         }
 
+
+        private IEnumerator MoveCoroutine()
+        {
+            while (Vector3.SqrMagnitude(_moveTarget.position - _movePosition) > _config.StoppingDistance)
+            {
+                Vector3 direction = (_moveTarget.position - _movePosition).normalized;
+                _moveTarget.position -= direction * Time.deltaTime * _config.MoveSpeed;
+                yield return new WaitForSeconds(Time.deltaTime);
+            }
+        }
     }
 }
